@@ -10,3 +10,7 @@ How to install
 How to add a package
 ===
 * run `poetry add <package-name>`
+
+References
+===
+* Code for performing the distillation: https://github.com/huggingface/transformers-research-projects/tree/main/distillation
