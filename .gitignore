@@ -1,0 +1,2 @@
+*.venv
+distilBERT/distilbert-sst2
