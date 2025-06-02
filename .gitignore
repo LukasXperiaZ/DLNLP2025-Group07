@@ -1,2 +1,3 @@
 *.venv
 distilBERT/distilbert-sst2
+*.bz2
