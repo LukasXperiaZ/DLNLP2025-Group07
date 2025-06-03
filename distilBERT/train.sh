@@ -1,0 +1,12 @@
+python train.py \
+    --student_type distilbert \
+    --student_config training_configs/distilbert-base-uncased.json \
+    --student_pretrained_weights \
+    --teacher_type bert \
+    --teacher_name bert-base-uncased \
+    --alpha_ce 5.0 --alpha_mlm 1.0 --alpha_cos 3.0 --alpha_clm 0.0 --mlm \
+    --freeze_pos_embs \
+    --dump_path serialization_dir/my_first_training \
+    --data_file data/binarized_text.bert-base-uncased.pickle \
+    --token_counts data/token_counts.bert-base-uncased.pickle \
+    --force

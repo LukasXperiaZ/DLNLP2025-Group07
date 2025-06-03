@@ -70,7 +70,7 @@ def main():
     start = time.time()
     for text in data:
         text = f"{bos} {text.strip()} {sep}"
-        token_ids = tokenizer.encode(text, add_special_tokens=False)
+        token_ids = tokenizer.encode(text, add_special_tokens=False, truncation=True, max_length=512) # Added truncation
         rslt.append(token_ids)
 
         iter += 1
