@@ -46,16 +46,16 @@ def main():
     logger.info(f"Loading Tokenizer ({args.tokenizer_name})")
     if args.tokenizer_type == "bert":
         tokenizer = BertTokenizer.from_pretrained(args.tokenizer_name)
-        bos = tokenizer.special_tokens_map["cls_token"]  # `[CLS]`
-        sep = tokenizer.special_tokens_map["sep_token"]  # `[SEP]`
+        #bos = tokenizer.special_tokens_map["cls_token"]  # `[CLS]`
+        #sep = tokenizer.special_tokens_map["sep_token"]  # `[SEP]`
     elif args.tokenizer_type == "roberta":
         tokenizer = RobertaTokenizer.from_pretrained(args.tokenizer_name)
-        bos = tokenizer.special_tokens_map["cls_token"]  # `<s>`
-        sep = tokenizer.special_tokens_map["sep_token"]  # `</s>`
+        #bos = tokenizer.special_tokens_map["cls_token"]  # `<s>`
+        #sep = tokenizer.special_tokens_map["sep_token"]  # `</s>`
     elif args.tokenizer_type == "gpt2":
         tokenizer = GPT2Tokenizer.from_pretrained(args.tokenizer_name)
-        bos = tokenizer.special_tokens_map["bos_token"]  # `<|endoftext|>`
-        sep = tokenizer.special_tokens_map["eos_token"]  # `<|endoftext|>`
+        #bos = tokenizer.special_tokens_map["bos_token"]  # `<|endoftext|>`
+        #sep = tokenizer.special_tokens_map["eos_token"]  # `<|endoftext|>`
 
     logger.info(f"Loading text from {args.file_path}")
     with open(args.file_path, "r", encoding="utf8") as fp:
@@ -69,9 +69,10 @@ def main():
     interval = 10000
     start = time.time()
     for text in data:
-        text = f"{bos} {text.strip()} {sep}"
-        token_ids = tokenizer.encode(text, add_special_tokens=False, truncation=True, max_length=512) # Added truncation
-        rslt.append(token_ids)
+        text = f"{text.strip()}"
+        token_ids = tokenizer.encode(text, add_special_tokens=True) # Added truncation: , truncation=True, max_length=512
+        if len(token_ids) >= 12: # The training script only uses sequences which are at least 12 tokens long.
+            rslt.append(token_ids)
 
         iter += 1
         if iter % interval == 0:
