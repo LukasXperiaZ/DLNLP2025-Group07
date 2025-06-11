@@ -1,7 +1,9 @@
 *.venv
-distilBERT/distilbert-sst2
 *.bz2
 dump.txt
 distilBERT/data
 distilBERT/serialization_dir
 __pycache__
+
+distilbert-sst2
+distilbert-wiki*

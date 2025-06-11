@@ -52,6 +52,7 @@ MODEL_CLASSES = {
     "gpt2": (GPT2Config, GPT2LMHeadModel, GPT2Tokenizer),
 }
 
+torch.cuda.set_per_process_memory_fraction(0.95)
 
 def sanity_checks(args):
     """

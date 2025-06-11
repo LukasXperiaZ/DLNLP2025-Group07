@@ -49,6 +49,7 @@ class Distiller:
         self.dump_path = params.dump_path
         self.multi_gpu = params.multi_gpu
         self.fp16 = params.fp16
+        self.scaler = torch.GradScaler(device="cuda")
 
         self.student = student
         self.teacher = teacher
@@ -152,32 +153,32 @@ class Distiller:
         )
 
         if self.fp16:
-            try:
-                from apex import amp
-            except ImportError:
-                raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
+            # try:
+            #     from apex import amp
+            # except ImportError:
+            #     raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
             logger.info(f"Using fp16 training: {self.params.fp16_opt_level} level")
-            self.student, self.optimizer = amp.initialize(
-                self.student, self.optimizer, opt_level=self.params.fp16_opt_level
-            )
+            # self.student, self.optimizer = amp.initialize(
+            #     self.student, self.optimizer, opt_level=self.params.fp16_opt_level
+            # )
             self.teacher = self.teacher.half()
 
         if self.multi_gpu:
-            if self.fp16:
-                from apex.parallel import DistributedDataParallel
+            # if self.fp16:
+            #     from apex.parallel import DistributedDataParallel
 
-                logger.info("Using apex.parallel.DistributedDataParallel for distributed training.")
-                self.student = DistributedDataParallel(self.student)
-            else:
-                from torch.nn.parallel import DistributedDataParallel
+            #     logger.info("Using apex.parallel.DistributedDataParallel for distributed training.")
+            #     self.student = DistributedDataParallel(self.student)
+            # else:
+            #     from torch.nn.parallel import DistributedDataParallel
 
                 logger.info("Using nn.parallel.DistributedDataParallel for distributed training.")
-                self.student = DistributedDataParallel(
-                    self.student,
-                    device_ids=[params.local_rank],
-                    output_device=params.local_rank,
-                    find_unused_parameters=True,
-                )
+            #     self.student = DistributedDataParallel(
+            #         self.student,
+            #         device_ids=[params.local_rank],
+            #         output_device=params.local_rank,
+            #         find_unused_parameters=True,
+            #     )
 
         self.is_master = params.is_master
         if self.is_master:
@@ -344,6 +345,7 @@ class Distiller:
                 torch.distributed.barrier()
 
             iter_bar = tqdm(self.dataloader, desc="-Iter", disable=self.params.local_rank not in [-1, 0])
+            i = 1
             for batch in iter_bar:
                 if self.params.n_gpu > 0:
                     batch = tuple(t.to(f"cuda:{self.params.local_rank}") for t in batch)
@@ -352,12 +354,22 @@ class Distiller:
                     token_ids, attn_mask, lm_labels = self.prepare_batch_mlm(batch=batch)
                 else:
                     token_ids, attn_mask, lm_labels = self.prepare_batch_clm(batch=batch)
-                self.step(input_ids=token_ids, attention_mask=attn_mask, lm_labels=lm_labels)
+
+                if self.fp16:
+                    with torch.autocast(device_type="cuda"):
+                        self.step(input_ids=token_ids, attention_mask=attn_mask, lm_labels=lm_labels)
+                else:
+                    self.step(input_ids=token_ids, attention_mask=attn_mask, lm_labels=lm_labels)
 
                 iter_bar.update()
                 iter_bar.set_postfix(
                     {"Last_loss": f"{self.last_loss:.2f}", "Avg_cum_loss": f"{self.total_loss_epoch/self.n_iter:.2f}"}
                 )
+                available_VRAM, _ = torch.cuda.mem_get_info()
+                if available_VRAM < 2 * (1000**3):  # Empty the cuda cache if there is less than 2 GB available VRAM
+                    #print(available_VRAM)
+                    torch.cuda.empty_cache()
+                i += 1
             iter_bar.close()
 
             if self.is_master:
@@ -463,6 +475,13 @@ class Distiller:
 
         self.n_sequences_epoch += input_ids.size(0)
 
+        # Delete all that could yield increasing VRAM over time
+        del input_ids, student_outputs, teacher_outputs, 
+        s_hidden_states, s_hidden_states_slct, t_hidden_states, t_hidden_states_slct
+        loss, loss_ce, loss_cos, loss_mlm, 
+        s_logits, s_logits_slct, t_logits, t_logits_slct,
+        mask, target, dim
+
     def optimize(self, loss):
         """
         Normalization on the loss (gradient accumulation or distributed training), followed by
@@ -480,20 +499,24 @@ class Distiller:
             loss = loss / self.params.gradient_accumulation_steps
 
         if self.fp16:
-            from apex import amp
-
-            with amp.scale_loss(loss, self.optimizer) as scaled_loss:
-                scaled_loss.backward()
+            self.scaler.scale(loss).backward()
         else:
             loss.backward()
 
         self.iter()
         if self.n_iter % self.params.gradient_accumulation_steps == 0:
             if self.fp16:
-                nn.utils.clip_grad_norm_(amp.master_params(self.optimizer), self.params.max_grad_norm)
+                self.scaler.unscale_(self.optimizer) # This unscales the gradients
+                nn.utils.clip_grad_norm_(self.student.parameters(), self.params.max_grad_norm)
             else:
                 nn.utils.clip_grad_norm_(self.student.parameters(), self.params.max_grad_norm)
-            self.optimizer.step()
+
+            if self.fp16:
+                self.scaler.step(self.optimizer) # Apply scaled gradients
+                self.scaler.update() # Update the GradScaler for the next iteration
+            else:
+                self.optimizer.step()
+            
             self.optimizer.zero_grad()
             self.scheduler.step()
 

@@ -1,5 +1,6 @@
 How the training of DistilBERT_small was done:
 ===
+0. We make use of the distillation research project on the huggingface [github](https://github.com/huggingface/transformers-research-projects/tree/main/distillation).
 1. Preprocess a subset of the english wikipedia in `extract_wikipedia_data.ipynb`
     * We only add sentences from an article if it contains at least 3 words.
     * Since we do not use all articles, we sample them randomly.
@@ -13,5 +14,23 @@ How the training of DistilBERT_small was done:
 
 Facts:
 ---
-* Started with 236.370 wikipedia articles (randomly sampled) containing a total of 5 million sentences with at least 3 words.
+* Started with 236.370 wikipedia articles (randomly sampled) containing a total of ~5 million sentences with at least 3 words.
 * For training, used 5.355.344 sequences.
+
+#### DistilBERT (6 Layers):
+* Training took around 1h:30min per epoch.
+* We trained for TODO epochs.
+
+#### DistilBERT_small (4 layers):
+* Training took around 1h:20min per epoch.
+* We trained for TODO epochs.
+
+Interesting observations:
+---
+* When training, the VRAM usage first goes up continuously. 
+* We tried to find the cause of it, but didn't succeed. 
+* However, interestingly, after a certain time, it suddenly goes down to about 10/24 GB and then again continuously up. We observed that this behaviour was repeated a few number of times. However, after some time, it stayed high. 
+* The most likely cause of this is that pytorch caches some information. 
+* We fixed it by calling `torch.cuda.empty_cache()` if there is less than 2GB of VRAM remaining, which frees cached VRAM and thus prevents the static increase.
+* Furthermore, due to a `torch.OutOfMemoryError`, we executed `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` in the shell to allow the CUDA memory allocator to be more flexible when allocating memory. Furthermore, we reduced the batch size from 48 to 32.
+* Finally, we also modified the code to work with the `--fp16` option. This option specifies whether to use 16-bit (mixed) precision instead of 32-bit for certain components. This allows us to reduce the required VRAM drastically.
