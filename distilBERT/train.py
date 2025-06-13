@@ -25,6 +25,7 @@ import shutil
 
 import numpy as np
 import torch
+#from short_distil.distiller_short import Distiller
 from distiller import Distiller
 from lm_seqs_dataset import LmSeqsDataset
 
