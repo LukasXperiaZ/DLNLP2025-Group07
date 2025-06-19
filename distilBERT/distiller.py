@@ -600,6 +600,7 @@ class Distiller:
         Do some tensorboard logging and checkpoint saving.
         """
         logger.info(f"{self.n_sequences_epoch} sequences have been trained during this epoch.")
+        torch.cuda.empty_cache()
 
         if self.is_master:
             self.save_checkpoint(checkpoint_name=f"model_epoch_{self.epoch}.pth")
@@ -616,6 +617,7 @@ class Distiller:
         """
         Save the current state. Only by the master process.
         """
+        torch.cuda.empty_cache()
         if not self.is_master:
             return
         mdl_to_save = self.student.module if hasattr(self.student, "module") else self.student
