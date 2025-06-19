@@ -8,7 +8,7 @@ How the training of DistilBERT_small was done:
     * Note that we modified the binarization slightly to use only sequences with a minimum number of 12 tokens (since it is filtered later anyway in `train.py`).
 3. Count the occurences of each token in the data (needed for masked language modeling loss): `python scripts/token_counts.py --data_file data/binarized_text.bert-base-uncased.pickle --token_counts_dump data/token_counts.bert-base-uncased.pickle --vocab_size 30522`
 4. Specify a .json configuration of distilbert small in `distilbert-small-uncased.json`
-6. Generate BERT checkpoint for later initializing the model weights of distilBERT: `python scripts/extract/distilbert.py`
+6. Generate BERT checkpoint for later initializing the model weights of distilBERT: `python scripts/extract_distilbert.py`
 5. Distil using the train script by executing `train.sh`
 
 

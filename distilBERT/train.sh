@@ -1,6 +1,6 @@
 python train.py \
 --student_type distilbert \
---student_config training_configs/distilbert-small-uncased.json \
+--student_config training_configs/distilbert-base-uncased.json \
 --student_pretrained_weights serialization_dir/tf_bert-base-uncased_0247911.pth \
 --teacher_type bert \
 --teacher_name bert-base-uncased \
@@ -9,7 +9,7 @@ python train.py \
 --n_epoch 1 \
 --fp16 \
 --freeze_pos_embs \
---dump_path serialization_dir/test \
+--dump_path serialization_dir/distilBERT \
 --data_file data/binarized_text.bert-base-uncased.pickle \
 --token_counts data/token_counts.bert-base-uncased.pickle \
 --force
