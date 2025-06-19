@@ -52,11 +52,19 @@ class Distiller:
         self.vocab_size = student.config.vocab_size   # number of unique tokens
 
         # Sample individual indices randomly from the dataset
+        # selecting sequences randomly from the dataset.
         index_sampler = RandomSampler(dataset)
 
-        # Group sampled indices into batches of fixed size
+        # Group the randomly selected sequences into batches of fixed size
+        # sampler is an iterable that yields lists of sequence indices, where each list represents a batch.
         sampler = BatchSampler(index_sampler, batch_size=params.batch_size, drop_last=False)
 
+        """
+        Create a PyTorch DataLoader that:
+        - Uses the custom dataset (LmSeqsDataset)
+        - Draws random mini-batches using the batch sampler
+        - Applies the custom collate_fn (batch_sequences) to pad and batch the data
+        """
         self.dataloader = DataLoader(dataset=dataset, batch_sampler=sampler, collate_fn=dataset.batch_sequences)
 
         """
@@ -84,15 +92,16 @@ class Distiller:
                                                     # Use cosine similarity to match teacher/student hidden states
 
         """
-        # Masked language modeling
-        If MLM is enabled:
-            - mask some input 
-            - train the student to predict those masked tokens
+        Configure Masked Language Modeling (MLM) behavior.
 
-        These control how masked tokens are handled:
-            word_mask: Replace with [MASK]
-            word_keep: Keep the original token
-            word_rand: Replace with a random token
+        If MLM is enabled:
+        - Randomly select a subset of input tokens to be masked.
+        - Train the student model to predict the original values of these masked tokens.
+
+        For each selected token, one of the following actions is taken (based on defined probabilities):
+        - word_mask: Replace the token with [MASK]
+        - word_keep: Keep the original token unchanged
+        - word_rand: Replace the token with a random token from the vocabulary
         """
         self.mlm = params.mlm
         logger.info("Using MLM loss for LM step.")
@@ -101,6 +110,7 @@ class Distiller:
         assert params.word_mask + params.word_keep + params.word_rand == 1.0
 
         # creates a tensor with the probabilities for mask, keep, or random replacement
+        # basically a list of three values [prop. to mask, prop. to keep, prop. to replace with random token]
         self.pred_probs = torch.FloatTensor([params.word_mask, params.word_keep, params.word_rand])
 
         # move the tensors to GPU
@@ -133,27 +143,46 @@ class Distiller:
         if self.alpha_cos > 0.0:
             self.cosine_loss_fct = nn.CosineEmbeddingLoss(reduction="mean") #  aligns vector directions
 
+        self.setup_optimizer(params, student)
+
+        self.is_master = params.is_master
+
+    def setup_optimizer(self, params, student):
         """
-        # Optimizer Setup
-        Compute how many actual optimizer updates we'll make over the whole training run. 
-        We are accumulating gradients over multiple batches.
-        It's used to properly configure learning rate scheduling and warmup.
-        For example for techniques like:
-            - Linear learning rate warmup (gradually increase LR from 0 to max)
-            - Learning rate decay (slowly reduce LR as training progresses)
-            
-        Weight decay — a form of L2 regularization.
-        Applies a penalty proportional to the square of the weights' magnitude.
-        This discourages large weights and helps prevent overfitting.
+        Initializes the adam optimizer and learning rate scheduler.
+
+        + Optimizer initialization:
+            Compute how many actual optimizer updates we'll make over the
+            whole training run based on the hyperparameter params.gradient_accumulation_steps.
+            By default we do a gradient update every 50 batches
+
+            parser.add_argument(
+                "--gradient_accumulation_steps",
+                type=int,
+                default=50,
+                help="Gradient accumulation for larger training batches.",
+            )
+
+        + Weight decay (L2 regularization) - to prevent overfitting
+
+        + Learning rate scheduler
+            - learning rate starts small,
+            - gradually increases for the first few steps (warmup phase),
+            - and then linearly decays.
+            This stabilizes training and helps prevent divergence in early updates.
+            At the start, model weights are random, gradients can be noisy, and large updates can destabilize learning.
+
+            The warmup phase is configured using the --warmup_prop argument, which defines
+            what proportion of the total training steps should be used for learning rate warmup.
         """
         logger.info("--- Initializing model optimizer")
         assert params.gradient_accumulation_steps >= 1
-        self.num_steps_epoch = len(self.dataloader)                 # One epoch = full pass through the training data.
-        num_train_optimization_steps = (
-            int(self.num_steps_epoch / params.gradient_accumulation_steps * params.n_epoch) + 1
-        )
 
-        no_decay = ["bias", "LayerNorm.weight"]                     # group parameters that should not get weight decay
+        self.num_steps_epoch = len(self.dataloader)  # One epoch = full pass through the training data.
+        num_train_optimization_steps = (
+                int(self.num_steps_epoch / params.gradient_accumulation_steps * params.n_epoch) + 1
+        )
+        no_decay = ["bias", "LayerNorm.weight"]  # group parameters that should not get weight decay
         optimizer_grouped_parameters = [
             {
                 "params": [
@@ -161,6 +190,7 @@ class Distiller:
                 ],
                 "weight_decay": params.weight_decay,
             },
+
             {
                 "params": [
                     p for n, p in student.named_parameters() if any(nd in n for nd in no_decay) and p.requires_grad
@@ -168,6 +198,7 @@ class Distiller:
                 "weight_decay": 0.0,
             },
         ]
+
         logger.info(
             "------ Number of trainable parameters (student): %i"
             % sum([p.numel() for p in self.student.parameters() if p.requires_grad])
@@ -185,13 +216,12 @@ class Distiller:
             self.optimizer, num_warmup_steps=warmup_steps, num_training_steps=num_train_optimization_steps
         )
 
-        self.is_master = params.is_master
-
-
     def prepare_batch_mlm(self, batch):
         """
         Prepares a batch for Mask Language Modeling:
-        Prepare the batch: from the token_ids and the lengths, compute the attention mask and the masked label for MLM.
+        - create the attention mask, real tokens vs padding, want to ignore padding tokens
+        - mask some tokens
+        - Setting up the MLM labels so the model knows which tokens to predict
 
         Input:
         ------
@@ -218,37 +248,56 @@ class Distiller:
             
             1 means "attend to this token" (real content)
             0 means "ignore this token" (padding)
+            
+            details:
+                We are comparing:
+                    lengths[:, None] .... a tensor of shape (batch_size, 1)
+                    with torch.arange(...)  ... a 1D tensor of shape (max_seq_len,)
+                
+                PyTorch automatically broadcasts these to: batch_size, max_seq_len)
         """
         attn_mask = torch.arange(token_ids.size(1), dtype=torch.long, device=lengths.device) < lengths[:, None]
 
-        bs, max_seq_len = token_ids.size()
-        mlm_labels = token_ids.new(token_ids.size()).copy_(token_ids)
+        bs, max_seq_len = token_ids.size()          # extracts batch_size and max_seq_len from the shape of token_ids
+        mlm_labels = token_ids.new(token_ids.size()).copy_(token_ids)  # copy the token ids of the batch
 
-        x_prob = self.token_probs[token_ids.flatten()]
-        n_tgt = math.ceil(self.mlm_mask_prop * lengths.sum().item())
-        tgt_ids = torch.multinomial(x_prob / x_prob.sum(), n_tgt, replacement=False)
+        """
+        # select tokens to be masked
+                + masking based on masking probability and based on how often a token occurs
+                + learning to predict rare words is more valueable since these words give more information
+                   token probabilitys:  max(count, 1) ^ (-alpha)       # see train.py for details
+        """
+        x_prob = self.token_probs[token_ids.flatten()]                 #  1D tensor of size (batch_size × seq_len). Each value represents the desirability (or probability) of masking that specific token.
+        n_tgt = math.ceil(self.mlm_mask_prop * lengths.sum().item())   #  this computes the number of tokens that should be masked in total
+
+        tgt_ids = torch.multinomial(x_prob / x_prob.sum(), n_tgt, replacement=False)    # normalize the token probabilities to turns x_prob into a valid probability distribution where the values sum to 1.
+                                                                                        # then select tokens to be masked based on the probabilites
+                                                                                        # e.g. mask the 17th, 24th, 89th, 103rd token in the flattened batch "token_ids"
+        """
+        # Create a boolean mask (pred_mask) indicating which token positions will be predicted (masked).
+        pred_mask is a boolean matrix of shape (batch_size, seq_len) where:
+            1 ... this token should be masked and predicted
+            0 ... leave this token as-is
+        """
         pred_mask = torch.zeros(
             bs * max_seq_len, dtype=torch.bool, device=token_ids.device
         )
-        pred_mask[tgt_ids] = 1
-        pred_mask = pred_mask.view(bs, max_seq_len)
-
-        # Create a boolean mask (pred_mask) indicating which token positions will be predicted (masked).
-        pred_mask[token_ids == self.params.special_tok_ids["pad_token"]] = 0
+        pred_mask[tgt_ids] = 1                              # sets entries at the sampled positions (tgt_ids) to True (1)
+        pred_mask = pred_mask.view(bs, max_seq_len)         # reshape the flat boolean mask into the original (batch_size, seq_len) shape.
+        pred_mask[token_ids == self.params.special_tok_ids["pad_token"]] = 0        # make sure padding tokens are not masked
 
         """
-        # masking:
-        Randomly choose:
-            If a token 
-                - is masked ([MASK]) - typically 80% of masked tokens
-                - keep original token - typically 10%  of masked tokens
-                - set a random token - typically 10% of masked tokens
+        # masking stategy:
+            for each token selected for masking choose if a token 
+            - is masked ([MASK]) - typically 80% of masked tokens
+            - keep original token - typically 10%  of masked tokens
+            - set a random token - typically 10% of masked tokens
         """
-        _token_ids_real = token_ids[pred_mask]
-        _token_ids_rand = _token_ids_real.clone().random_(self.vocab_size)
-        _token_ids_mask = _token_ids_real.clone().fill_(self.params.special_tok_ids["mask_token"])
-        probs = torch.multinomial(self.pred_probs, len(_token_ids_real), replacement=True)
-        _token_ids = (
+        _token_ids_real = token_ids[pred_mask]                                          # select the original token IDs at the positions we plan to mask
+        _token_ids_rand = _token_ids_real.clone().random_(self.vocab_size)              # creates a random token for each masked position
+        _token_ids_mask = _token_ids_real.clone().fill_(self.params.special_tok_ids["mask_token"])  # creates a version where all masked tokens are replaced with [MASK]
+        probs = torch.multinomial(self.pred_probs, len(_token_ids_real), replacement=True)  # choose which tokens to mask, keep, randomize
+        _token_ids = (                              # build the final masked token list by selecting the masked, original or randomized token based on the previous sampling
             _token_ids_mask * (probs == 0).long()
             + _token_ids_real * (probs == 1).long()
             + _token_ids_rand * (probs == 2).long()
@@ -332,7 +381,7 @@ class Distiller:
         lm_labels: `torch.tensor(bs, seq_length)` - The language modeling labels (mlm labels for MLM and clm labels for CLM).
         """
 
-        # forward step for student and teacher model to comput the logits and hidden states for both models
+        # forward step for student and teacher model to compute the logits and hidden states for both models
         # Teacher is in eval mode, so no gradient tracking
         student_outputs = self.student(
             input_ids=input_ids, attention_mask=attention_mask
@@ -348,29 +397,43 @@ class Distiller:
         assert s_logits.size() == t_logits.size()
 
         """
-        # prepare the student and teacher logits (s_logits, t_logits) for the distillation loss computation
-        Not every token is relevant for loss calculation (especially in MLM mode where only some tokens are masked).
-        So we mask out irrelevant positions (e.g., padding or non-masked tokens).
+        mask out irrelevant positions (e.g., padding or non-masked tokens)
+            lm_labels > -1 ... returns a boolean tensor 
+                               True where the value is greater than -1 (a masked token)
+                               False where the value is -100 → not used in loss, ignore it
         """
-        if self.params.restrict_ce_to_mask: # uses the MLM label tensor to only compare positions that were masked
-            mask = (lm_labels > -1).unsqueeze(-1).expand_as(s_logits)  # (bs, seq_length, voc_size)
-        else:   # include all non-padding tokens, not just the masked ones
-            mask = attention_mask.unsqueeze(-1).expand_as(s_logits)  # (bs, seq_length, voc_size)
+        mask = (lm_labels > -1).unsqueeze(-1).expand_as(s_logits)  # (bs, seq_length, voc_size)
 
-        # Apply the mask to select logits only from relevant positions
+        """
+        # Use the mask to select logits only from relevant positions where mask == True
+        """
+        # selects only logits where mask == True for the student model
         s_logits_slct = torch.masked_select(s_logits, mask)  # (bs * seq_length * voc_size) modulo the 1s in mask
         s_logits_slct = s_logits_slct.view(-1, s_logits.size(-1))  # (bs * seq_length, voc_size) modulo the 1s in mask
+
+        # selects only logits where mask == True for the teacher model
         t_logits_slct = torch.masked_select(t_logits, mask)  # (bs * seq_length * voc_size) modulo the 1s in mask
         t_logits_slct = t_logits_slct.view(-1, s_logits.size(-1))  # (bs * seq_length, voc_size) modulo the 1s in mask
         assert t_logits_slct.size() == s_logits_slct.size()
 
+        """
+        # Loss calculation
+        
+        distillation loss
+            To compare the probability distribution of the teachers soft-prediction and the students soft-predictions we use the Kullback-Leiber divergence.
+            For this, we compute the softmax of the teacher's logits and the log-softmax of the student's logits.
+            temperature scaling of logits to get a smoother probability distributions
+            s_logits_slct / self.temperature
+            t_logits_slct / self.temperature
+        """
         # compute distillation loss - difference between teacher and student logits
         loss_ce = (
             self.ce_loss_fct(
                 nn.functional.log_softmax(s_logits_slct / self.temperature, dim=-1),
                 nn.functional.softmax(t_logits_slct / self.temperature, dim=-1),
             )
-            * (self.temperature) ** 2
+            * (self.temperature) ** 2      # temperature softening of the logits scales down the gradients,
+                                           # therefore we multiply with a correcting factor T² see Hinton et al distillation paper (2015)
         )
         loss = self.alpha_ce * loss_ce
 
@@ -397,29 +460,40 @@ class Distiller:
         #   mimic how the teacher “thinks,” not just what it predicts.
         if self.alpha_cos > 0.0:
 
-            # Both models return hidden states for all layers. [-1] extracts the last layer's output
+            # Both models return hidden states for all layers. [-1] extracts the last layer's output, the prediction layer
             s_hidden_states = s_hidden_states[-1]  # (bs, seq_length, dim)
             t_hidden_states = t_hidden_states[-1]  # (bs, seq_length, dim)
+
+            # build the mask to ignore padding tokens
             mask = attention_mask.unsqueeze(-1).expand_as(s_hidden_states)  # (bs, seq_length, dim)
                                                                             # adds a third dimension to make the attention mask compatible with the hidden states
             assert s_hidden_states.size() == t_hidden_states.size()
             dim = s_hidden_states.size(-1)
 
             # use the mask to only select embeddings of real tokens
+            # then reshape the tensor so we can compare the embeddings
             s_hidden_states_slct = torch.masked_select(s_hidden_states, mask)  # (bs * seq_length * dim)
-            s_hidden_states_slct = s_hidden_states_slct.view(-1, dim)  # (bs * seq_length, dim)
+            s_hidden_states_slct = s_hidden_states_slct.view(-1, dim)  # (bs * seq_length, dim) reshape into 2D tensor so we can compare the embeddings
+
             t_hidden_states_slct = torch.masked_select(t_hidden_states, mask)  # (bs * seq_length * dim)
             t_hidden_states_slct = t_hidden_states_slct.view(-1, dim)  # (bs * seq_length, dim)
 
             """
+            # Cosine loss
             The cosine loss expects a target tensor of 1s to indicate:
             “These two vectors should be similar.”
             So you build a vector like [1, 1, 1, ..., 1] with the same length as the number of compared embeddings.
+            
+            target vector of shape (N,), where N is the number of selected (non-padding) tokens.
+                +1 means: "These two vectors should be similar"
+                -1 means: "These two vectors should be dissimilar"
             """
-            target = s_hidden_states_slct.new(s_hidden_states_slct.size(0)).fill_(1)  # (bs * seq_length,)
+            target = s_hidden_states_slct.new(s_hidden_states_slct.size(0)).fill_(1)  # (bs * seq_length,)  creates a 1D tensor of shape (N,) where N is the number
+                                                                                      #                     of selected (non-padding) tokens and Fills it with all 1s.
             loss_cos = self.cosine_loss_fct(s_hidden_states_slct, t_hidden_states_slct, target)
             loss += self.alpha_cos * loss_cos
 
+        # track the total loss and the individual components of the loss (cross-entropy, MLM, MSE, cosine) for the current batch
         self.total_loss_epoch += loss.item()
         self.last_loss = loss.item()
         self.last_loss_ce = loss_ce.item()
@@ -432,7 +506,7 @@ class Distiller:
 
         self.optimize(loss)
 
-        self.n_sequences_epoch += input_ids.size(0)
+        self.n_sequences_epoch += input_ids.size(0)     # track how many sequences were processed this epoch for logging
 
     def optimize(self, loss):
         """
@@ -442,7 +516,7 @@ class Distiller:
         Normalization on the loss (gradient accumulation or distributed training), followed by
         backward pass on the loss, possibly followed by a parameter update (depending on the gradient accumulation).
         """
-        # Check for NaN
+        # Check for NaN - could occur because of gradient explosion
         if (loss != loss).data.any():
             logger.error("NaN detected")
             exit()
@@ -498,6 +572,11 @@ class Distiller:
         """
         Wraps up after an epoch:
         May save model checkpoint or reset state.
+            stores the student model’s weights to disk
+            This checkpoint system ensures we can:
+                + recover from crashes
+                + resume training
+                + load a trained model later for inference or evaluation
         --------------------
 
         Finally arrived at the end of epoch (full pass on dataset).

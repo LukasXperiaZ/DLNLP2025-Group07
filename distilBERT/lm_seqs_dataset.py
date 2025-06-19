@@ -145,6 +145,17 @@ class LmSeqsDataset(Dataset):
     def batch_sequences(self, batch):
         """
         Do the padding and transform into torch.tensor.
+        gets a list with sequences. Adds the padding and return a tensor of a
+        defined size with the dimensions (batch_size, max_sequence_length)
+
+        example:
+                tk_t = [         # the padded sequences
+                          [101, 7592, 2088, 102],   # "hello world"
+                          [101, 2204,   102,    0]  # "goodbye" + [PAD]
+                ]
+
+                lg_t = tensor([4, 3])     # original sequence length
+
         """
         token_ids = [t[0] for t in batch]
         lengths = [t[1] for t in batch]
@@ -162,6 +173,6 @@ class LmSeqsDataset(Dataset):
         assert len(tk_) == len(token_ids)
         assert all(len(t) == max_seq_len_ for t in tk_)
 
-        tk_t = torch.tensor(tk_)  # (bs, max_seq_len_)
-        lg_t = torch.tensor(lengths)  # (bs)
+        tk_t = torch.tensor(tk_)  # (bs, max_seq_len_)  # the padded tokens
+        lg_t = torch.tensor(lengths)  # (bs)            # original sequence length
         return tk_t, lg_t
