@@ -1,0 +1,210 @@
+
+Training started with 10 epochs ...
+[Epoch 1] Training Loss: 1038.4160  Epoch Time: 0:02:59.659586
+[Epoch 2] Training Loss: 570.2187  Epoch Time: 0:02:59.191290
+[Epoch 3] Training Loss: 290.7947  Epoch Time: 0:02:59.198935
+[Epoch 4] Training Loss: 195.4523  Epoch Time: 0:02:59.189239
+[Epoch 5] Training Loss: 147.8770  Epoch Time: 0:02:59.205010
+[Epoch 6] Training Loss: 119.1543  Epoch Time: 0:02:59.193511
+[Epoch 7] Training Loss: 99.1133  Epoch Time: 0:02:59.209786
+[Epoch 8] Training Loss: 85.3901  Epoch Time: 0:02:59.195029
+[Epoch 9] Training Loss: 79.0551  Epoch Time: 0:02:59.208804
+[Epoch 10] Training Loss: 64.3259  Epoch Time: 0:02:59.206870
+
+Training complete in 0:29:52.910157!
+
+BERT Teacher Accuracy: 0.8750
+
+
+---
+
+Training with 10 epochs (alpha = 1.0 ; T = 4.0)
+[Epoch 1] Training Loss: 8275.3861  Epoch Time: 0:02:24.423652
+[Epoch 2] Training Loss: 4578.2086  Epoch Time: 0:02:24.542851
+[Epoch 3] Training Loss: 2605.8765  Epoch Time: 0:02:24.547907
+[Epoch 4] Training Loss: 1848.0762  Epoch Time: 0:02:24.548365
+[Epoch 5] Training Loss: 1448.7763  Epoch Time: 0:02:24.536264
+[Epoch 6] Training Loss: 1097.5494  Epoch Time: 0:02:24.543025
+[Epoch 7] Training Loss: 1000.1255  Epoch Time: 0:02:24.551415
+[Epoch 8] Training Loss: 932.4496  Epoch Time: 0:02:24.570294
+[Epoch 9] Training Loss: 794.2852  Epoch Time: 0:02:24.546988
+[Epoch 10] Training Loss: 716.1492  Epoch Time: 0:02:24.540982
+
+Training complete in 0:24:05.358977!
+
+
+DistilBERT Student Accuracy: 0.8602
+BERT Teacher Accuracy: 0.8750
+
+
+---
+
+Training with 10 epochs (alpha = 0.75 ; T = 4.0)
+[Epoch 1] Training Loss: 6582.8074  Epoch Time: 0:02:24.936913
+[Epoch 2] Training Loss: 3712.6696  Epoch Time: 0:02:25.265239
+[Epoch 3] Training Loss: 2067.8149  Epoch Time: 0:02:25.490923
+[Epoch 4] Training Loss: 1367.0856  Epoch Time: 0:02:25.886047
+[Epoch 5] Training Loss: 1038.7036  Epoch Time: 0:02:25.159775
+[Epoch 6] Training Loss: 909.8339  Epoch Time: 0:02:25.334376
+[Epoch 7] Training Loss: 781.9723  Epoch Time: 0:02:25.537285
+
+DistilBERT Student Accuracy: 0.8690
+BERT Teacher Accuracy: 0.8750
+
+---
+
+Training with 10 epochs (alpha = 0.5 ; T = 4.0)
+[Epoch 1] Training Loss: 4877.0162  Epoch Time: 0:02:24.640324
+[Epoch 2] Training Loss: 2736.9551  Epoch Time: 0:02:24.746246
+[Epoch 3] Training Loss: 1533.6859  Epoch Time: 0:02:24.779419
+[Epoch 4] Training Loss: 989.3998  Epoch Time: 0:02:24.737895
+[Epoch 5] Training Loss: 794.4314  Epoch Time: 0:02:24.699283
+[Epoch 6] Training Loss: 645.4886  Epoch Time: 0:02:24.701696
+[Epoch 7] Training Loss: 551.4581  Epoch Time: 0:02:24.699249
+[Epoch 8] Training Loss: 513.0747  Epoch Time: 0:02:24.706720
+[Epoch 9] Training Loss: 465.1876  Epoch Time: 0:02:24.715473
+[Epoch 10] Training Loss: 428.9000  Epoch Time: 0:02:24.718738
+
+Training complete in 0:24:07.153506!
+
+DistilBERT Student Accuracy: 0.8624
+BERT Teacher Accuracy: 0.8750
+
+---
+
+Training with 10 epochs (alpha = 0.25 ; T = 4.0)
+[Epoch 1] Training Loss: 3108.5007  Epoch Time: 0:02:24.378268
+[Epoch 2] Training Loss: 1721.1301  Epoch Time: 0:02:24.548325
+[Epoch 3] Training Loss: 914.4690  Epoch Time: 0:02:24.592389
+[Epoch 4] Training Loss: 599.2390  Epoch Time: 0:02:24.654420
+[Epoch 5] Training Loss: 460.3290  Epoch Time: 0:02:24.628919
+[Epoch 6] Training Loss: 382.1566  Epoch Time: 0:02:24.649734
+[Epoch 7] Training Loss: 355.9264  Epoch Time: 0:02:24.583930
+[Epoch 8] Training Loss: 320.4666  Epoch Time: 0:02:24.558440
+[Epoch 9] Training Loss: 292.6425  Epoch Time: 0:02:24.530237
+[Epoch 10] Training Loss: 256.8527  Epoch Time: 0:02:24.555496
+
+Training complete in 0:24:05.687207!
+
+DistilBERT Student Accuracy: 0.8654
+BERT Teacher Accuracy: 0.8750
+
+---
+
+Training with 10 epochs (alpha = 0.0 ; T = 4.0)
+[Epoch 1] Training Loss: 1091.5220  Epoch Time: 0:02:24.391757
+[Epoch 2] Training Loss: 635.6035  Epoch Time: 0:02:24.503432
+[Epoch 3] Training Loss: 338.3940  Epoch Time: 0:02:24.537984
+[Epoch 4] Training Loss: 183.3002  Epoch Time: 0:02:24.556700
+[Epoch 5] Training Loss: 142.1404  Epoch Time: 0:02:24.527830
+[Epoch 6] Training Loss: 107.9570  Epoch Time: 0:02:24.521054
+[Epoch 7] Training Loss: 94.9130  Epoch Time: 0:02:24.508008
+[Epoch 8] Training Loss: 83.8931  Epoch Time: 0:02:24.498844
+[Epoch 9] Training Loss: 58.3330  Epoch Time: 0:02:24.502864
+[Epoch 10] Training Loss: 58.5085  Epoch Time: 0:02:24.503496
+
+Training complete in 0:24:05.059567!
+
+DistilBERT Student Accuracy: 0.8706
+BERT Teacher Accuracy: 0.8750
+
+---
+
+Training with 10 epochs (alpha = 1.0 ; T = 2.0)
+[Epoch 1] Training Loss: 3699.3375  Epoch Time: 0:02:24.396681
+[Epoch 2] Training Loss: 2065.5138  Epoch Time: 0:02:24.543342
+[Epoch 3] Training Loss: 1055.9029  Epoch Time: 0:02:24.574433
+[Epoch 4] Training Loss: 713.5624  Epoch Time: 0:02:24.574912
+[Epoch 5] Training Loss: 504.3800  Epoch Time: 0:02:24.578339
+[Epoch 6] Training Loss: 447.6414  Epoch Time: 0:02:24.588122
+[Epoch 7] Training Loss: 365.3724  Epoch Time: 0:02:24.569789
+[Epoch 8] Training Loss: 322.1663  Epoch Time: 0:02:24.618602
+[Epoch 9] Training Loss: 284.8389  Epoch Time: 0:02:24.548877
+[Epoch 10] Training Loss: 280.1933  Epoch Time: 0:02:24.550082
+
+Training complete in 0:24:05.550315!
+
+DistilBERT Student Accuracy: 0.8642
+BERT Teacher Accuracy: 0.8750
+
+---
+
+Training with 10 epochs (alpha = 0.75 ; T = 2.0)
+[Epoch 1] Training Loss: 3060.3920  Epoch Time: 0:02:24.437615
+[Epoch 2] Training Loss: 1705.9131  Epoch Time: 0:02:24.566089
+[Epoch 3] Training Loss: 897.9382  Epoch Time: 0:02:24.571769
+[Epoch 4] Training Loss: 571.5849  Epoch Time: 0:02:24.573356
+[Epoch 5] Training Loss: 446.3554  Epoch Time: 0:02:24.574868
+[Epoch 6] Training Loss: 359.2008  Epoch Time: 0:02:24.563225
+[Epoch 7] Training Loss: 310.9833  Epoch Time: 0:02:24.559213
+[Epoch 8] Training Loss: 271.5456  Epoch Time: 0:02:24.594135
+[Epoch 9] Training Loss: 279.5691  Epoch Time: 0:02:24.561862
+[Epoch 10] Training Loss: 230.8792  Epoch Time: 0:02:24.578937
+
+Training complete in 0:24:05.588586!
+
+DistilBERT Student Accuracy: 0.8673
+BERT Teacher Accuracy: 0.8750
+
+---
+
+---
+
+Training with 10 epochs (alpha = 0.5 ; T = 2.0)
+[Epoch 1] Training Loss: 2453.0553  Epoch Time: 0:02:24.597234
+[Epoch 2] Training Loss: 1383.6282  Epoch Time: 0:02:24.710846
+[Epoch 3] Training Loss: 738.9631  Epoch Time: 0:02:24.694432
+[Epoch 4] Training Loss: 486.4311  Epoch Time: 0:02:24.729904
+[Epoch 5] Training Loss: 341.7421  Epoch Time: 0:02:24.738873
+[Epoch 6] Training Loss: 294.3574  Epoch Time: 0:02:24.761850
+[Epoch 7] Training Loss: 246.4373  Epoch Time: 0:02:24.735929
+[Epoch 8] Training Loss: 232.9892  Epoch Time: 0:02:24.717218
+[Epoch 9] Training Loss: 202.7665  Epoch Time: 0:02:24.747310
+[Epoch 10] Training Loss: 188.6268  Epoch Time: 0:02:24.744127
+
+Training complete in 0:24:07.184628!
+
+DistilBERT Student Accuracy: 0.8707
+BERT Teacher Accuracy: 0.8750
+
+----
+
+Training with 10 epochs (alpha = 0.25 ; T = 2.0)
+[Epoch 1] Training Loss: 1799.6177  Epoch Time: 0:02:24.452170
+[Epoch 2] Training Loss: 1011.3938  Epoch Time: 0:02:24.558843
+[Epoch 3] Training Loss: 524.3651  Epoch Time: 0:02:24.583303
+[Epoch 4] Training Loss: 333.5585  Epoch Time: 0:02:24.616734
+[Epoch 5] Training Loss: 247.8393  Epoch Time: 0:02:24.582708
+[Epoch 6] Training Loss: 213.4696  Epoch Time: 0:02:24.607599
+[Epoch 7] Training Loss: 175.6306  Epoch Time: 0:02:24.609570
+[Epoch 8] Training Loss: 160.2435  Epoch Time: 0:02:24.604604
+[Epoch 9] Training Loss: 151.3676  Epoch Time: 0:02:24.607483
+[Epoch 10] Training Loss: 135.4792  Epoch Time: 0:02:24.599424
+
+Training complete in 0:24:05.829994!
+
+
+DistilBERT Student Accuracy: 0.8604
+BERT Teacher Accuracy: 0.8750
+
+---
+
+Training with 10 epochs (alpha = 0.0 ; T = 2.0)
+[Epoch 1] Training Loss: 1084.4108  Epoch Time: 0:02:24.541412
+[Epoch 2] Training Loss: 623.7085  Epoch Time: 0:02:24.697313
+[Epoch 3] Training Loss: 322.9828  Epoch Time: 0:02:24.734699
+[Epoch 4] Training Loss: 197.5322  Epoch Time: 0:02:24.722337
+[Epoch 5] Training Loss: 144.6475  Epoch Time: 0:02:24.711927
+[Epoch 6] Training Loss: 111.8212  Epoch Time: 0:02:24.736737
+[Epoch 7] Training Loss: 87.6618  Epoch Time: 0:02:24.723607
+[Epoch 8] Training Loss: 76.6581  Epoch Time: 0:02:24.706659
+[Epoch 9] Training Loss: 68.7976  Epoch Time: 0:02:24.890188
+[Epoch 10] Training Loss: 58.3837  Epoch Time: 0:02:24.570231
+
+Training complete in 0:24:07.042015!
+
+DistilBERT Student Accuracy: 0.8620
+BERT Teacher Accuracy: 0.8750
+
+
+
